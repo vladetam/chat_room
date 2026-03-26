@@ -33,6 +33,7 @@ init(ServerPid, Name) ->
 loop(ServerPid, Name) ->
     receive
         {send, Text} ->
+            io:format("[~p] <~p>: ~s~n", [Name, Name, Text]),
             ServerPid ! {message, self(), Text},
             loop(ServerPid, Name);
 
