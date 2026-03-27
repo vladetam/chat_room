@@ -43,7 +43,7 @@ loop(Users) ->
                 {ok, #user{name = Name}} ->
                     FromPid ! leave_ok,
                     UpdatedUsers = remove_by_pid(FromPid, Users),
-                    broadcast_notification({user_left, Name}, UpdatedUsers),
+                    broadcast_notification({user_offline, Name}, UpdatedUsers),
                     io:format("[Server] ~p left. Total: ~p~n", [Name, length(UpdatedUsers)]),
                     loop(UpdatedUsers);
                 not_found ->
