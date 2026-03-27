@@ -14,13 +14,12 @@ init() ->
 loop(Users) ->
     receive
         {join, Name, UserPid} ->
-            case find_by_name(Name, Users) of
-                {ok, _} ->
+            case is_duplicate_name(Name, Users) of
+                true ->
                     UserPid ! {join_rejected, duplicate_name},
                     io:format("[Server] Join rejected for ~p (duplicate).~n", [Name]),
                     loop(Users);
-
-                not_found ->
+                false ->
                     link(UserPid),
                     NewUser = #user{name = Name, pid = UserPid},
                     UserPid ! {join_ok, self()},
@@ -35,7 +34,7 @@ loop(Users) ->
                     Others = [U || U <- Users, U#user.pid =/= FromPid],
                     broadcast_message(FromName, Text, Others);
                 not_found ->
-                    ok
+                    io:format("[Server][WARN] Message from unknown PID: ~p~n", [FromPid])
             end,
             loop(Users);
 
@@ -48,6 +47,7 @@ loop(Users) ->
                     io:format("[Server] ~p left. Total: ~p~n", [Name, length(UpdatedUsers)]),
                     loop(UpdatedUsers);
                 not_found ->
+                    io:format("[Server][WARN] Leave from unknown PID: ~p~n", [FromPid]),
                     loop(Users)
             end;
 
@@ -57,14 +57,17 @@ loop(Users) ->
                     UpdatedUsers = remove_by_pid(FromPid, Users),
                     case Reason of
                         normal ->
-                            broadcast_notification({user_left, Name}, UpdatedUsers),
-                            io:format("[Server] ~p left. Total: ~p~n", [Name, length(UpdatedUsers)]);
+                         io:format("[Server] ~p left. Total: ~p~n", [Name, length(UpdatedUsers)]);
                         _ ->
-                            broadcast_notification({user_disconnected, Name}, UpdatedUsers),
-                            io:format("[Server] ~p crashed (~p). Total: ~p~n", [Name, Reason, length(UpdatedUsers)])
+                         io:format("[Server] ~p crashed (~p). Total: ~p~n", [Name, Reason, length(UpdatedUsers)])
                     end,
+
+                    broadcast_notification({user_offline, Name}, UpdatedUsers),
+
                     loop(UpdatedUsers);
-                not_found -> loop(Users)
+                not_found -> 
+                    io:format("[Server][INFO] EXIT from untracked PID: ~p (Reason: ~p)~n",[FromPid, Reason]),
+                    loop(Users)
             end;
 
         {list_users, CallerPid} ->
@@ -86,12 +89,6 @@ broadcast_notification(Notification, Users) ->
         catch Pid ! {server_notification, Notification}
     end, Users).
 
-find_by_name(Name, Users) ->
-    case lists:keyfind(Name, #user.name, Users) of
-        false -> not_found;
-        User -> {ok, User}
-    end.
-
 find_by_pid(Pid, Users) ->
     case lists:keyfind(Pid, #user.pid, Users) of
         false -> not_found;
@@ -100,3 +97,9 @@ find_by_pid(Pid, Users) ->
 
 remove_by_pid(Pid, Users) ->
     lists:keydelete(Pid, #user.pid, Users).
+
+is_duplicate_name(Name, Users) ->
+    case lists:keyfind(Name, #user.name, Users) of
+        false -> false;
+        _ -> true
+    end.

@@ -55,12 +55,8 @@ loop(ServerPid, Name) ->
             io:format("[~p] ~p joined.~n", [Name, JoinedName]),
             loop(ServerPid, Name);
 
-        {server_notification, {user_left, LeftName}} ->
-            io:format("[~p] ~p left.~n", [Name, LeftName]),
-            loop(ServerPid, Name);
-
-        {server_notification, {user_disconnected, DisconnectedName}} ->
-            io:format("[~p] ~p crashed.~n", [Name, DisconnectedName]),
+        {server_notification, {user_offline, OfflineName}} ->
+            io:format("[~p] ~p went offline.~n", [Name, OfflineName]),
             loop(ServerPid, Name);
 
         _Other ->
